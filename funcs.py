@@ -5,6 +5,7 @@ import pandas as pd
 from scipy.stats import norm
 import matplotlib.pyplot as plt
 import pcntoolkit as ptk  
+import arviz as az
 
 import logging
 logger = logging.getLogger("pymc")
@@ -145,6 +146,103 @@ def plot_quantiles(nm, df, x_str, y_str, inscaler, outscaler, n_qs=2, n_samples=
     return ax
 
 
+def run_all(df, x_str, y_str, reg_type='all') :
+    
+    models_dict = {'name': [], 'inscaler':[], 'outscaler':[], 'object': []}
+    models_name_lin = ['lin_hom', 
+                       'lin_het', 
+                       'lin_shash_sig', 
+                       'lin_shash_sig_eps', 
+                       'lin_shash_sig_del', 
+                       'lin_shash_all']
+    models_name_gamlss = ['gam_hom', 
+                          'gam_het', 
+                          'gamlss_sig', 
+                          'gamlss_sig_eps', 
+                          'gamlss_sig_del', 
+                          'gamlss_all']
+    models_args = [{}, 
+                   {'linear_sigma':'True'}, 
+                   {'likelihood':'SHASHo2', 
+                    'linear_sigma':'True'},
+                   {'likelihood':'SHASHo2', 
+                    'linear_sigma':'True', 
+                    'linear_epsilon':'True'},
+                   {'likelihood':'SHASHo2', 
+                    'linear_sigma':'True', 
+                    'linear_delta':'True'},
+                   {'likelihood':'SHASHo2', 
+                    'linear_sigma':'True', 
+                    'linear_epsilon':'True',
+                    'linear_delta':'True'}]
+    if reg_type == 'linear' :
+        models_name = models_name_lin
+    elif reg_type == 'gamlss' :
+        models_name = models_name_gamlss
+    else :
+        models_name = models_name_lin + models_name_gamlss
+        models_args = 2*models_args
+
+    for i_model in range(len(models_name)) :
+        nm, inscaler, outscaler = hbr_fit(df, 
+                                          x_str, 
+                                          y_str, 
+                                          fit_suffix_str=models_name[i_model], 
+                                          n_chains=4, 
+                                          n_warmup=1000, 
+                                          n_samples=1000,
+                                          model_type='bspline',
+                                          **models_args[i_model])
+        models_dict['name'].append(models_name[i_model])
+        models_dict['inscaler'].append(inscaler)
+        models_dict['outscaler'].append(outscaler)
+        models_dict['object'].append(nm)
+        
+    return models_dict
+        
+
+def run_all_and_compare(df, x_str, y_str, reg_type='all') :
+    """
+    Runs all configurations of models (reg_type='linear', 'gamlss', or 'all')
+    and returns a tupple (models_dict, compare) with 
+    models_dict: a dictionnary with the fitted models 
+    compare: an array of model comparison
+    """
+    
+    models_dict = run_all(df, x_str, y_str, reg_type=reg_type)
+    #way i found to sample from posterior predictive
+    for i in range(len(models_dict['name'])) :
+        nm, inscaler = models_dict['object'][i], models_dict['inscaler'][i]
+        #nm.hbr.idata object is actualized
+        nm.get_mcmc_quantiles(inscaler.fit_transform(df[x_str]))
+    #compute pointwise loglik
+    models_dict['loglik'] = []
+    for i in range(len(models_dict['name'])) :
+        nm, outscaler = models_dict['object'][i], models_dict['outscaler'][i]
+        samples = nm.hbr.idata.posterior_predictive
+        loglik = compute_loglikelihood(nm, samples, 
+                                       outscaler.fit_transform(df[y_str]))
+        models_dict['loglik'].append(loglik)
+    sum_loglik = []
+    for l in models_dict['loglik'] :
+        sum_loglik.append(np.nanmean(l, axis=(0, 1)).sum())
+    nm_idata_list = []
+    for i in range(len(models_dict['object'])) :
+        nm_idata_list.append(models_dict['object'][i].hbr.idata.copy())
+        nm_idata_list[-1].add_groups(log_likelihood={
+            "log_lik": models_dict['loglik'][i]})
+    models_data_dict = {m: d for m, d in zip(models_dict['name'], 
+                                             nm_idata_list)}
+    compare = az.compare(models_data_dict)
+    
+    return models_dict, compare
+    
+
+def get_best(compare) :
+    name = compare[compare['rank'] == 0].index[0]
+    return name 
+
+
 def gaussian_pdf(y, mu, sigma) :
     return norm(mu, sigma).pdf(y)
 
@@ -219,3 +317,5 @@ def transform_positive(transformed_param, param_name, nm) :
             return log(1 + np.exp(transformed_param))
         elif param_name == 'delta' :
             return log(1 + np.exp(transformed_param * 10)) / 10 + 0.3
+
+
