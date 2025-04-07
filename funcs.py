@@ -188,17 +188,21 @@ def run_all(df, x_str, y_str, reg_type='all') :
     if reg_type != ('linear' or 'gamlss') :
         models_args = 2*models_args
 
-    for i_model in range(len(model_names)) :
+    for i_model, model in enumerate(model_names) :
+        if model[:3] == 'lin' :
+            model_type = 'linear'
+        else :
+            model_type = 'bspline'
         nm, inscaler, outscaler = hbr_fit(df, 
                                           x_str, 
                                           y_str, 
-                                          fit_suffix_str=model_names[i_model], 
+                                          fit_suffix_str=model, 
                                           n_chains=4, 
                                           n_warmup=1000, 
                                           n_samples=1000,
-                                          model_type='bspline',
+                                          model_type=model_type,
                                           **models_args[i_model])
-        models_dict['name'].append(model_names[i_model])
+        models_dict['name'].append(model)
         models_dict['inscaler'].append(inscaler)
         models_dict['outscaler'].append(outscaler)
         models_dict['object'].append(nm)
@@ -247,12 +251,14 @@ def run_all_and_compare(df, x_str, y_str, reg_type='all') :
     return models_dict, compare
     
     
-def dict_from_pickles(x_str, y_str, model_names, files_dir='reg_fits') :
+def dict_from_pickles(df, x_str, y_str, model_names, files_dir='reg_fits') :
     
     models_dict = {'name': [], 'object': [], 'inscaler': [], 'outscaler': []}
-    inscaler = ptk.util.utils.scaler('standardize') #fixed
-    outscaler = ptk.util.utils.scaler('standardize') #fixed
     for name in model_names :
+        
+        inscaler = ptk.util.utils.scaler('standardize') 
+        outscaler = ptk.util.utils.scaler('standardize')
+        
         try :
             file_path = files_dir +\
                 "/x=" + x_str + "_y=" + y_str + "_fit_" + name + ".pkl"
@@ -261,14 +267,18 @@ def dict_from_pickles(x_str, y_str, model_names, files_dir='reg_fits') :
         except :
             print('Error: file ' + file_path + ' not found')
             return 
+        
         models_dict['name'].append(name)
         models_dict['object'].append(nm)
+        inscaler.fit(df[x_str])
+        outscaler.fit(df[y_str])
         models_dict['inscaler'].append(inscaler)
         models_dict['outscaler'].append(outscaler)
+        
     return models_dict
         
 
-def from_pickle(x_str, y_str, model_name, file_dir='reg_fits') :
+def nm_from_pickle(x_str, y_str, model_name, file_dir='reg_fits') :
     file_path = file_dir +\
         "/x=" + x_str + "_y=" + y_str + "_fit_" + model_name + ".pkl"
     with open(file_path,'rb') as file :
@@ -277,7 +287,7 @@ def from_pickle(x_str, y_str, model_name, file_dir='reg_fits') :
     
 
 def compare_from_pickles(df, x_str, y_str, model_names, files_dir='reg_fits') :
-    models_dict = dict_from_pickles(x_str, y_str, model_names, files_dir)
+    models_dict = dict_from_pickles(df, x_str, y_str, model_names, files_dir)
     compare = compare_models(df, x_str, y_str, models_dict)
     return models_dict, compare
 
