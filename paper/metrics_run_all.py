@@ -81,7 +81,7 @@ for metric in metrics:
                     hue=("batch_effects", "Dataset"), 
                     style=("batch_effects", "Atlas"))
     plt.tight_layout()
-    """
+    
     model_names = ["lin_rand_intcp_noise",
                    "lin_rand_intcp_noise_intcp_lin",
                    "lin_rand_intcp_noise_intcp_slope_lin",
@@ -143,4 +143,4 @@ for metric in metrics:
                 "_compare_all.png", bbox_inches="tight")
     cutoff = comp_nowarning["elpd_diff"] > 2*comp_nowarning["dse"]
 
-"""
+
