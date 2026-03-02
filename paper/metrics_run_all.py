@@ -5,6 +5,10 @@ Created on Mon Oct 13 13:07:15 2025
 
 @author: tng
 """
+# This script fits a bunch of models to each metrics and 
+# performs bayesian model comparison in each metric
+# Important: uses pcntoolkit version 1.01 
+
 
 import models
 from utils import *
@@ -39,8 +43,6 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 pd.options.mode.chained_assignment = None  # default='warn'
 pcntoolkit.util.output.Output.set_show_messages(False)
 
-# Fits a bunch of models to each metrics and 
-# performs bayesian model comparison in each metric
 metrics = ["pearsonr", "spearmanr", "mutualinfo", "coherence", 
            "precision", "euclidean"]
 
