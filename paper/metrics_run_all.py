@@ -5,7 +5,7 @@ Created on Mon Oct 13 13:07:15 2025
 
 @author: tng
 """
-# This script fits a bunch of models to each metrics and 
+# This script fits a bunch of models to each metric and 
 # performs bayesian model comparison in each metric
 # Important: uses pcntoolkit version 1.01 
 
@@ -53,7 +53,7 @@ for metric in metrics:
         os.mkdir(save_dir)
         os.mkdir(save_dir + "plots/")
 
-    data_file = "Df_metricsFC_" + metric + ".json"
+    data_file = "data/Df_metricsFC_" + metric + ".json"
     data = pd.read_json(data_file)
     covariates = ["Age"]
     responses = ["Mean interh FC"]
