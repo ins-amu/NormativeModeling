@@ -46,7 +46,7 @@ if not os.path.exists(save_dir):
     os.mkdir(save_dir)
     os.mkdir(save_dir + "plots/")
 
-data_file = "Df_metricsFC_" + metric + ".json"
+data_file = "data/Df_metricsFC_" + metric + ".json"
 data = pd.read_json(data_file)
 covariates = ["Age"]
 responses = ["Mean interh FC"]
